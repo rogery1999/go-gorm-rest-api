@@ -7,19 +7,16 @@ import (
 	"github.com/rogery1999/go-gorm-rest-api/handlers"
 )
 
+func helloWorldHandler(c echo.Context) error {
+	return c.String(http.StatusOK, "Hello world!")
+}
+
 func SetupRoutes(e *echo.Echo) {
+	gV1 := e.Group("/api/v1")
 
 	// * Home middleware
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			for _, path := range []string{"/", ""} {
-				if c.Path() == path {
-					return c.String(http.StatusOK, "Hello world")
-				}
-			}
-			return next(c)
-		}
-	})
+	gV1.GET("", helloWorldHandler)
+	gV1.GET("/", helloWorldHandler)
 
-	handlers.SetupUsersRoutes(e)
+	handlers.SetupUsersRoutes(gV1)
 }

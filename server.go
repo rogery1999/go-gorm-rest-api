@@ -6,43 +6,11 @@ import (
 	"os"
 	"strings"
 
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
-	"github.com/rogery1999/go-gorm-rest-api/routes"
 )
-
-func main() {
-	e := echo.New()
-
-	setupLogs(e)
-	setupEnvironmentVariables(e)
-
-	setupCORS(e)
-
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			// c.Logger().Debug("First middleware")
-			return next(c)
-		}
-	})
-
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			// c.Logger().Debug("Second middleware")
-			return next(c)
-		}
-	})
-
-	e.Static("/resources", "./static")
-
-	routes.SetupRoutes(e)
-
-	e.HTTPErrorHandler = errorHandler
-
-	e.Logger.Info(fmt.Sprintf("Server running on http://%v:%v", os.Getenv("HOST"), os.Getenv("PORT")))
-	e.Logger.Fatal(e.Start(fmt.Sprintf(":%v", os.Getenv("PORT"))))
-}
 
 func setupEnvironmentVariables(e *echo.Echo) {
 	for _, arg := range os.Args[1:] {
@@ -96,6 +64,16 @@ func setupCORS(e *echo.Echo) {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"localhost"},
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodPut, http.MethodPatch},
+	}))
+}
+
+// TODO
+func setupJWT(e *echo.Echo) {
+	e.Use(echojwt.WithConfig(echojwt.Config{
+		SigningKey: []byte(os.Getenv("JWT_SECRET")),
+		Skipper: func(c echo.Context) bool {
+			return true
+		},
 	}))
 }
 
