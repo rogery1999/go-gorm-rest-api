@@ -8,8 +8,17 @@ import (
 )
 
 func SetupRoutes(e *echo.Echo) {
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello world")
+
+	// * Home middleware
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			for _, path := range []string{"/", ""} {
+				if c.Path() == path {
+					return c.String(http.StatusOK, "Hello world")
+				}
+			}
+			return next(c)
+		}
 	})
 
 	handlers.SetupUsersRoutes(e)

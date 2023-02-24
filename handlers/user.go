@@ -12,6 +12,11 @@ import (
 	"github.com/rogery1999/go-gorm-rest-api/utils"
 )
 
+type CreateUserRequestBody struct {
+	Name string `json:"name" validate:"required"`
+	Age  uint   `json:"age" validate:"number"`
+}
+
 func findUserById(c echo.Context) error {
 	userId := c.Param("userId")
 	fmt.Println("userId", userId)
@@ -19,9 +24,7 @@ func findUserById(c echo.Context) error {
 	for _, user := range data.UsersData {
 		id, err := strconv.Atoi(userId)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]interface{}{
-				"error": "Invalid identifier",
-			})
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid identifier")
 		}
 
 		if user.Id == uint64(id) {
@@ -29,12 +32,11 @@ func findUserById(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusNotFound, map[string]string{
-		"message": fmt.Sprintf("User with id %s not found", userId),
-	})
+	return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User with id %s not found", userId))
 }
 
 func getAllUsers(c echo.Context) error {
+	c.Logger().Info("Get all users")
 	if len(c.QueryParams()) == 0 {
 		return c.JSON(http.StatusOK, data.UsersData)
 	}
@@ -45,16 +47,12 @@ func getAllUsers(c echo.Context) error {
 	qtyLength, pgLength := len([]rune(qty)), len([]rune(pg))
 
 	if pgLength > 0 && qtyLength == 0 {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "when the queryParam 'page' is sent you must also sent the 'qty' queryParam",
-		})
+		return echo.NewHTTPError(http.StatusBadRequest, "when the queryParam 'page' is sent you must also sent the 'qty' queryParam")
 	}
 
 	quantity, err := strconv.Atoi(qty)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": fmt.Sprintf("%s is not a valid value", qty),
-		})
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s is not a valid value", qty))
 	}
 
 	if qtyLength > 0 && pgLength == 0 {
@@ -63,9 +61,7 @@ func getAllUsers(c echo.Context) error {
 
 	page, err := strconv.Atoi(pg)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": fmt.Sprintf("%s is not a valid value", pg),
-		})
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s is not a valid value", pg))
 	}
 
 	offsetItems := (page - 1) * quantity
@@ -75,7 +71,7 @@ func getAllUsers(c echo.Context) error {
 func createUser(c echo.Context) error {
 	newUser := new(models.User)
 	if err := c.Bind(newUser); err != nil {
-		return c.JSON(http.StatusBadRequest, err)
+		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 	data.UsersData = append(data.UsersData, *newUser)
 
@@ -84,15 +80,15 @@ func createUser(c echo.Context) error {
 
 // TODO
 func updateUser(c echo.Context) error {
+	// err := (&echo.DefaultBinder{}).BindBody(c, &models.User{})
+	// here := echo.PathParamsBinder(c).Uint("userId")
 	return c.NoContent(http.StatusOK)
 }
 
 func deleteUser(c echo.Context) error {
 	userId, err := strconv.Atoi(c.Param("userId"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": fmt.Sprintf("Invalid userId %s, expected an unsigned integer", c.Param("userId")),
-		})
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid userId %s, expected an unsigned integer", c.Param("userId")))
 	}
 
 	userIndex := -1
@@ -105,9 +101,7 @@ func deleteUser(c echo.Context) error {
 	}
 
 	if userIndex < 0 {
-		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": fmt.Sprintf("No user was found with the id %d", userId),
-		})
+		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("No user was found with the id %d", userId))
 	}
 
 	data.UsersData = append(data.UsersData[:userIndex], data.UsersData[(userIndex+1):]...)
@@ -116,9 +110,12 @@ func deleteUser(c echo.Context) error {
 }
 
 func SetupUsersRoutes(c *echo.Echo) {
-	c.GET("/users", getAllUsers)
-	c.GET("/users/:userId", findUserById)
-	c.POST("/users", createUser)
-	c.PATCH("/users/:userId", updateUser)
-	c.DELETE("/users/:userId", deleteUser)
+	ug := c.Group("/users")
+
+	// * Routes
+	ug.GET("", getAllUsers)
+	ug.GET("/:userId", findUserById)
+	ug.POST("", createUser)
+	ug.PATCH("/:userId", updateUser)
+	ug.DELETE("/:userId", deleteUser)
 }
