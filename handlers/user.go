@@ -10,13 +10,19 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rogery1999/go-gorm-rest-api/data"
 	"github.com/rogery1999/go-gorm-rest-api/models"
+	"github.com/rogery1999/go-gorm-rest-api/types"
 	"github.com/rogery1999/go-gorm-rest-api/utils"
 	"github.com/rogery1999/go-gorm-rest-api/validation"
 )
 
-type CreateUserRequestBody struct {
+type UpdateUserRequestBody struct {
 	Name string `json:"name" validate:"required"`
-	Age  uint   `json:"age" validate:"gte=0,lte=130"`
+	Age  uint   `json:"age" validate:"gte=1,lte=130"`
+}
+
+type CreateUserRequestBody struct {
+	Name string `json:"name" validate:"required,alpha"`
+	Age  uint   `json:"age" validate:"required,gte=1,lte=130"`
 }
 
 func findUserById(c echo.Context) error {
@@ -71,40 +77,36 @@ func getAllUsers(c echo.Context) error {
 }
 
 func createUser(c echo.Context) error {
-	newUser := new(models.User)
-	if err := c.Bind(newUser); err != nil {
+	requestBody := new(CreateUserRequestBody)
+	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	data.UsersData = append(data.UsersData, *newUser)
+
+	if err := validateRequestBody(&requestBody); err != nil {
+		c.Error(err)
+		return nil
+	}
+
+	newUser := models.User{
+		Id:   data.UsersData[len(data.UsersData)-1].Id + 1,
+		Name: requestBody.Name,
+		Age:  requestBody.Age,
+	}
+
+	data.UsersData = append(data.UsersData, newUser)
 
 	return c.NoContent(http.StatusCreated)
 }
 
 func updateUser(c echo.Context) error {
-	requestBody := new(CreateUserRequestBody)
+	requestBody := new(UpdateUserRequestBody)
 	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body data, review your 'Content-Type' header")
 	}
 
-	err := validation.Validator.Struct(requestBody)
-	if err != nil {
-		for _, err := range err.(validator.ValidationErrors) {
-
-			fmt.Println(err.Namespace())
-			fmt.Println(err.Field())
-			fmt.Println(err.StructNamespace())
-			fmt.Println(err.StructField())
-			fmt.Println(err.Tag())
-			fmt.Println(err.ActualTag())
-			fmt.Println(err.Kind())
-			fmt.Println(err.Type())
-			fmt.Println(err.Value())
-			fmt.Println(err.Param())
-			fmt.Println()
-		}
-
-		// TODO: Improve error response
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid body data  ❌")
+	if err := validateRequestBody(*requestBody); err != nil {
+		c.Error(err)
+		return nil
 	}
 
 	for idx, user := range data.UsersData {
@@ -147,6 +149,23 @@ func deleteUser(c echo.Context) error {
 	data.UsersData = append(data.UsersData[:userIndex], data.UsersData[(userIndex+1):]...)
 
 	return c.NoContent(http.StatusAccepted)
+}
+
+func validateRequestBody(requestBody interface{}) error {
+	err := validation.Validator.Struct(requestBody)
+	if err != nil {
+		errors := make(map[string]string)
+		for _, err := range err.(validator.ValidationErrors) {
+			errorMessage := fmt.Sprintf("on %s field expect an %s but receive %v", err.Field(), err.Tag(), err.Value())
+			errors[err.StructField()] = errorMessage
+		}
+
+		return &types.CustomError{Status: http.StatusBadRequest, Body: map[string]interface{}{
+			"errors": errors,
+		}}
+	}
+
+	return nil
 }
 
 func SetupUsersRoutes(c *echo.Group) {

@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	"github.com/rogery1999/go-gorm-rest-api/types"
 )
 
 func setupEnvironmentVariables(e *echo.Echo) {
@@ -79,6 +80,11 @@ func setupJWT(e *echo.Echo) {
 
 func errorHandler(err error, c echo.Context) {
 	code := http.StatusInternalServerError
+
+	if customErr, ok := err.(*types.CustomError); ok {
+		code = int(customErr.Status)
+	}
+
 	c.Logger().Error(err)
 	if httpErr, ok := err.(*echo.HTTPError); ok {
 		code = httpErr.Code
