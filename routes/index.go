@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/rogery1999/go-gorm-rest-api/handlers"
 )
 
 func helloWorldHandler(c echo.Context) error {
@@ -18,5 +17,6 @@ func SetupRoutes(e *echo.Echo) {
 	gV1.GET("", helloWorldHandler)
 	gV1.GET("/", helloWorldHandler)
 
-	handlers.SetupUsersRoutes(gV1)
+	setupAuthRoutes(gV1)
+	setupUsersRoutes(gV1)
 }

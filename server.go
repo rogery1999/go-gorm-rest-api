@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
-	"github.com/rogery1999/go-gorm-rest-api/types"
+	"github.com/rogery1999/go-gorm-rest-api/middlewares"
+	"github.com/rogery1999/go-gorm-rest-api/validation"
 )
 
 func setupEnvironmentVariables(e *echo.Echo) {
@@ -61,36 +59,11 @@ func setupLogs(e *echo.Echo) {
 	e.Logger.Info("Logs setup and running")
 }
 
-func setupCORS(e *echo.Echo) {
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"localhost"},
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodPut, http.MethodPatch},
-	}))
-}
+func setupServer(e *echo.Echo) {
+	validation.CreateValidator()
+	e.Static("/resources", "./static")
 
-// TODO
-func setupJWT(e *echo.Echo) {
-	e.Use(echojwt.WithConfig(echojwt.Config{
-		SigningKey: []byte(os.Getenv("JWT_SECRET")),
-		Skipper: func(c echo.Context) bool {
-			return true
-		},
-	}))
-}
-
-func errorHandler(err error, c echo.Context) {
-	code := http.StatusInternalServerError
-
-	if customErr, ok := err.(*types.CustomError); ok {
-		code = int(customErr.Status)
-	}
-
-	c.Logger().Error(err)
-	if httpErr, ok := err.(*echo.HTTPError); ok {
-		code = httpErr.Code
-	}
-
-	c.JSON(code, map[string]string{
-		"message": err.Error(),
-	})
+	setupLogs(e)
+	setupEnvironmentVariables(e)
+	middlewares.SetupMiddlewares(e)
 }

@@ -15,17 +15,7 @@ import (
 	"github.com/rogery1999/go-gorm-rest-api/validation"
 )
 
-type UpdateUserRequestBody struct {
-	Name string `json:"name" validate:"required"`
-	Age  uint   `json:"age" validate:"gte=1,lte=130"`
-}
-
-type CreateUserRequestBody struct {
-	Name string `json:"name" validate:"required,alpha"`
-	Age  uint   `json:"age" validate:"required,gte=1,lte=130"`
-}
-
-func findUserById(c echo.Context) error {
+func FindUserById(c echo.Context) error {
 	userId := c.Param("userId")
 	fmt.Println("userId", userId)
 
@@ -43,7 +33,7 @@ func findUserById(c echo.Context) error {
 	return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User with id %s not found", userId))
 }
 
-func getAllUsers(c echo.Context) error {
+func GetAllUsers(c echo.Context) error {
 	c.Logger().Info("Get all users")
 	if len(c.QueryParams()) == 0 {
 		return c.JSON(http.StatusOK, data.UsersData)
@@ -76,13 +66,13 @@ func getAllUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, utils.SplitSlice(data.UsersData, uint(offsetItems), uint(offsetItems+quantity)))
 }
 
-func createUser(c echo.Context) error {
-	requestBody := new(CreateUserRequestBody)
+func CreateUser(c echo.Context) error {
+	requestBody := new(createUserRequestBody)
 	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-
-	if err := validateRequestBody(&requestBody); err != nil {
+	c.Logger().Debug(requestBody)
+	if err := validateRequestBody(requestBody); err != nil {
 		c.Error(err)
 		return nil
 	}
@@ -98,13 +88,13 @@ func createUser(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func updateUser(c echo.Context) error {
-	requestBody := new(UpdateUserRequestBody)
+func UpdateUser(c echo.Context) error {
+	requestBody := new(updateUserRequestBody)
 	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body data, review your 'Content-Type' header")
 	}
 
-	if err := validateRequestBody(*requestBody); err != nil {
+	if err := validateRequestBody(requestBody); err != nil {
 		c.Error(err)
 		return nil
 	}
@@ -127,7 +117,7 @@ func updateUser(c echo.Context) error {
 	return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("No user found with id %s", c.Param("userId")))
 }
 
-func deleteUser(c echo.Context) error {
+func DeleteUser(c echo.Context) error {
 	userId, err := strconv.Atoi(c.Param("userId"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid userId %s, expected an unsigned integer", c.Param("userId")))
@@ -151,10 +141,17 @@ func deleteUser(c echo.Context) error {
 	return c.NoContent(http.StatusAccepted)
 }
 
+// TODO: refactor this
 func validateRequestBody(requestBody interface{}) error {
 	err := validation.Validator.Struct(requestBody)
 	if err != nil {
 		errors := make(map[string]string)
+
+		if _, ok := err.(*validator.InvalidValidationError); ok {
+			fmt.Println(err)
+			return err
+		}
+
 		for _, err := range err.(validator.ValidationErrors) {
 			errorMessage := fmt.Sprintf("on %s field expect an %s but receive %v", err.Field(), err.Tag(), err.Value())
 			errors[err.StructField()] = errorMessage
@@ -166,15 +163,4 @@ func validateRequestBody(requestBody interface{}) error {
 	}
 
 	return nil
-}
-
-func SetupUsersRoutes(c *echo.Group) {
-	ug := c.Group("/users")
-
-	// * Routes
-	ug.GET("", getAllUsers)
-	ug.GET("/:userId", findUserById)
-	ug.POST("", createUser)
-	ug.PATCH("/:userId", updateUser)
-	ug.DELETE("/:userId", deleteUser)
 }
