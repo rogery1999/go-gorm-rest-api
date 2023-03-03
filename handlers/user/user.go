@@ -6,13 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/rogery1999/go-gorm-rest-api/data"
 	"github.com/rogery1999/go-gorm-rest-api/models"
-	"github.com/rogery1999/go-gorm-rest-api/types"
 	"github.com/rogery1999/go-gorm-rest-api/utils"
-	"github.com/rogery1999/go-gorm-rest-api/validation"
 )
 
 func FindUserById(c echo.Context) error {
@@ -72,7 +69,7 @@ func CreateUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 	c.Logger().Debug(requestBody)
-	if err := validateRequestBody(requestBody); err != nil {
+	if err := utils.ValidateRequestBody(requestBody); err != nil {
 		c.Error(err)
 		return nil
 	}
@@ -94,7 +91,7 @@ func UpdateUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body data, review your 'Content-Type' header")
 	}
 
-	if err := validateRequestBody(requestBody); err != nil {
+	if err := utils.ValidateRequestBody(requestBody); err != nil {
 		c.Error(err)
 		return nil
 	}
@@ -139,28 +136,4 @@ func DeleteUser(c echo.Context) error {
 	data.UsersData = append(data.UsersData[:userIndex], data.UsersData[(userIndex+1):]...)
 
 	return c.NoContent(http.StatusAccepted)
-}
-
-// TODO: refactor this
-func validateRequestBody(requestBody interface{}) error {
-	err := validation.Validator.Struct(requestBody)
-	if err != nil {
-		errors := make(map[string]string)
-
-		if _, ok := err.(*validator.InvalidValidationError); ok {
-			fmt.Println(err)
-			return err
-		}
-
-		for _, err := range err.(validator.ValidationErrors) {
-			errorMessage := fmt.Sprintf("on %s field expect an %s but receive %v", err.Field(), err.Tag(), err.Value())
-			errors[err.StructField()] = errorMessage
-		}
-
-		return &types.CustomError{Status: http.StatusBadRequest, Body: map[string]interface{}{
-			"errors": errors,
-		}}
-	}
-
-	return nil
 }
