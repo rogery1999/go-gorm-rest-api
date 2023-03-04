@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/rogery1999/go-gorm-rest-api/types"
 )
 
 func JWTMiddleware(e *echo.Echo) {
@@ -34,9 +35,6 @@ func JWTMiddleware(e *echo.Echo) {
 				return []byte(os.Getenv("JWT_SECRET")), nil
 			})
 
-			// TODO
-			// token.Claims.Valid()
-
 			if err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, err)
 			}
@@ -58,7 +56,11 @@ func JWTMiddleware(e *echo.Echo) {
 				return echo.NewHTTPError(http.StatusUnauthorized, errors.New("this token has expired"))
 			}
 
-			// TODO: Add the claim data into the context creating a new context type
+			userDataJWT := types.UserDataJWT{
+				Username: claims["username"].(string),
+			}
+
+			c.Set("userDataJWT", userDataJWT)
 			return next(c)
 		}
 	})
