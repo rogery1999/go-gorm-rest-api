@@ -9,4 +9,5 @@ func setupAuthRoutes(g *echo.Group) {
 	authG := g.Group("/auth")
 
 	authG.POST("/login", authHandlers.AuthLogin)
+	authG.POST("/refresh-token", authHandlers.AuthRefreshToken)
 }

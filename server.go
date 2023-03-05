@@ -7,7 +7,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
+	"github.com/rogery1999/go-gorm-rest-api/config"
 	"github.com/rogery1999/go-gorm-rest-api/middlewares"
+	"github.com/rogery1999/go-gorm-rest-api/types"
 	"github.com/rogery1999/go-gorm-rest-api/validation"
 )
 
@@ -36,6 +38,9 @@ func setupEnvironmentVariables(e *echo.Echo) {
 	}
 
 	for _, variable := range strings.Split(string(content), "\n") {
+		if variable == "" {
+			continue
+		}
 		envData := strings.Split(variable, "=")
 		os.Setenv(envData[0], envData[1])
 	}
@@ -60,10 +65,12 @@ func setupLogs(e *echo.Echo) {
 }
 
 func setupServer(e *echo.Echo) {
+	e.Binder = &types.CustomBinder{}
 	validation.CreateValidator()
 	e.Static("/resources", "./static")
 
 	setupLogs(e)
 	setupEnvironmentVariables(e)
 	middlewares.SetupMiddlewares(e)
+	config.SetupDB(e)
 }

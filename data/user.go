@@ -2,7 +2,7 @@ package data
 
 import "github.com/rogery1999/go-gorm-rest-api/models"
 
-var UsersData []models.User = []models.User{
+var UsersData []models.UserDTO = []models.UserDTO{
 	{
 		Id:   1,
 		Name: "Rogery Vargas",

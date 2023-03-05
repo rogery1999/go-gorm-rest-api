@@ -25,6 +25,10 @@ func JWTMiddleware(e *echo.Echo) {
 
 			// * Validating jwt
 			ah := c.Request().Header.Get("Authorization")
+			if ah == "" {
+				return echo.NewHTTPError(http.StatusUnauthorized, "No authentication header found")
+			}
+
 			jwtS := strings.Split(ah, "Bearer ")[1]
 
 			token, err := jwt.Parse(jwtS, func(t *jwt.Token) (interface{}, error) {
@@ -57,7 +61,7 @@ func JWTMiddleware(e *echo.Echo) {
 			}
 
 			userDataJWT := types.UserDataJWT{
-				Username: claims["username"].(string),
+				UserUUID: claims["authId"].(string),
 			}
 
 			c.Set("userDataJWT", userDataJWT)

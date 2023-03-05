@@ -1,15 +1,20 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/rogery1999/go-gorm-rest-api/config"
 	"github.com/rogery1999/go-gorm-rest-api/data"
 	"github.com/rogery1999/go-gorm-rest-api/models"
 	"github.com/rogery1999/go-gorm-rest-api/utils"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func FindUserById(c echo.Context) error {
@@ -27,7 +32,7 @@ func FindUserById(c echo.Context) error {
 		}
 	}
 
-	return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User with id %s not found", userId))
+	return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("UserDTO with id %s not found", userId))
 }
 
 func GetAllUsers(c echo.Context) error {
@@ -68,19 +73,44 @@ func CreateUser(c echo.Context) error {
 	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
-	c.Logger().Debug(requestBody)
+
 	if err := utils.ValidateRequestBody(requestBody); err != nil {
-		c.Error(err)
-		return nil
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	newUser := models.User{
-		Id:   data.UsersData[len(data.UsersData)-1].Id + 1,
-		Name: requestBody.Name,
-		Age:  requestBody.Age,
+	// * Find is the email is already registered
+	userDuplicatedEmail := models.User{
+		Email: requestBody.Email,
+	}
+	result := config.DBGorm.First(&userDuplicatedEmail)
+	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return echo.NewHTTPError(http.StatusBadRequest, "this email is already registered")
 	}
 
-	data.UsersData = append(data.UsersData, newUser)
+	birthday, err := time.Parse("2006-01-02", requestBody.Birthday)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(requestBody.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	user := models.User{
+		FirstName:  requestBody.FirstName,
+		MiddleName: requestBody.MiddleName,
+		LastName:   requestBody.LastName,
+		Email:      requestBody.Email,
+		Password:   string(passwordHash),
+		Birthday:   birthday,
+	}
+
+	result = config.DBGorm.Create(&user)
+
+	if result.Error != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, result.Error)
+	}
 
 	return c.NoContent(http.StatusCreated)
 }
