@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rogery1999/go-gorm-rest-api/config"
 	"github.com/rogery1999/go-gorm-rest-api/models"
+	"github.com/rogery1999/go-gorm-rest-api/schemas"
 	"github.com/rogery1999/go-gorm-rest-api/utils"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -18,7 +19,7 @@ import (
 
 func AuthLogin(c echo.Context) error {
 	c.Logger().Info("AuthLogin endpoint executed")
-	body := new(ReqBodyAuthLogin)
+	body := new(schemas.ReqBodyAuthLogin)
 
 	if err := c.Bind(body); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
@@ -51,7 +52,7 @@ func AuthLogin(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	return c.JSON(http.StatusOK, ResBodyAuthLogin{
+	return c.JSON(http.StatusOK, schemas.ResBodyAuthLogin{
 		User: fmt.Sprintf("%v %v %v", user.FirstName, user.MiddleName, user.LastName),
 		JWT:  jwtS,
 	})

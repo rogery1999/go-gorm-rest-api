@@ -1,4 +1,4 @@
-package handlers
+package schemas
 
 type ReqBodyAuthLogin struct {
 	Email    string `json:"email" validate:"required,email"`

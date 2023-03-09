@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/rogery1999/go-gorm-rest-api/schemas"
+)
 
 type UserDTO struct {
 	Id   uint64 `json:"id"`
@@ -18,4 +22,14 @@ type User struct {
 	Birthday   time.Time `gorm:"index:,sort:asc"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+}
+
+func (u *User) MapUserToUserInfoResponse() *schemas.UserInfoResponse {
+	return &schemas.UserInfoResponse{
+		FirstName:  u.FirstName,
+		MiddleName: u.MiddleName,
+		LastName:   u.LastName,
+		Email:      u.Email,
+		Birthday:   u.Birthday.Format("2006-01-02"),
+	}
 }

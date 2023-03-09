@@ -12,37 +12,46 @@ import (
 	"github.com/rogery1999/go-gorm-rest-api/config"
 	"github.com/rogery1999/go-gorm-rest-api/data"
 	"github.com/rogery1999/go-gorm-rest-api/models"
+	"github.com/rogery1999/go-gorm-rest-api/schemas"
 	"github.com/rogery1999/go-gorm-rest-api/utils"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 func FindUserById(c echo.Context) error {
+	c.Logger().Info("Find user by id executed")
 	userId := c.Param("userId")
-	fmt.Println("userId", userId)
-
-	for _, user := range data.UsersData {
-		id, err := strconv.Atoi(userId)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Invalid identifier")
-		}
-
-		if user.Id == uint64(id) {
-			return c.JSON(http.StatusOK, user)
-		}
+	c.Logger().Info(fmt.Sprintf("%T %v", userId, userId))
+	userUUID, err := strconv.Atoi(userId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user id value")
 	}
 
-	return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("UserDTO with id %s not found", userId))
+	user := models.User{UUID: uint64(userUUID)}
+	result := config.DBGorm.Select("first_name", "last_name", "middle_name", "email", "birthday").Find(&user)
+
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("No user found with the user id %v", userId))
+	}
+
+	return c.JSON(http.StatusOK, *user.MapUserToUserInfoResponse())
 }
 
 func GetAllUsers(c echo.Context) error {
-	c.Logger().Info("Get all users")
+	c.Logger().Info("Get all users executed")
+	users := make([]models.User, 0)
 	if len(c.QueryParams()) == 0 {
-		return c.JSON(http.StatusOK, data.UsersData)
+		config.DBGorm.Select("first_name", "last_name", "middle_name", "email", "birthday").Find(&users)
+
+		usersR := make([]schemas.UserInfoResponse, 0)
+		for _, user := range users {
+			usersR = append(usersR, *user.MapUserToUserInfoResponse())
+		}
+
+		return c.JSON(http.StatusOK, usersR)
 	}
 
 	// * Pagination
-
 	qty, pg := strings.Trim(c.QueryParam("qty"), " "), strings.Trim(c.QueryParam("page"), "")
 	qtyLength, pgLength := len([]rune(qty)), len([]rune(pg))
 
@@ -63,13 +72,21 @@ func GetAllUsers(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s is not a valid value", pg))
 	}
+	offset := (page - 1) * quantity
 
-	offsetItems := (page - 1) * quantity
-	return c.JSON(http.StatusOK, utils.SplitSlice(data.UsersData, uint(offsetItems), uint(offsetItems+quantity)))
+	// TODO: test this with more users
+	config.DBGorm.Select("first_name", "last_name", "middle_name", "email", "birthday").Limit(qtyLength).Offset(offset).Find(&users)
+
+	usersR := make([]schemas.UserInfoResponse, 0)
+	for _, user := range users {
+		usersR = append(usersR, *user.MapUserToUserInfoResponse())
+	}
+
+	return c.JSON(http.StatusOK, usersR)
 }
 
 func CreateUser(c echo.Context) error {
-	requestBody := new(createUserRequestBody)
+	requestBody := new(schemas.CreateUserRequestBody)
 	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
@@ -116,7 +133,7 @@ func CreateUser(c echo.Context) error {
 }
 
 func UpdateUser(c echo.Context) error {
-	requestBody := new(updateUserRequestBody)
+	requestBody := new(schemas.UpdateUserRequestBody)
 	if err := c.Bind(&requestBody); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid body data, review your 'Content-Type' header")
 	}

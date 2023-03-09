@@ -60,8 +60,9 @@ func JWTMiddleware(e *echo.Echo) {
 				return echo.NewHTTPError(http.StatusUnauthorized, errors.New("this token has expired"))
 			}
 
+			userUUID := uint64(claims["authId"].(float64))
 			userDataJWT := types.UserDataJWT{
-				UserUUID: claims["authId"].(string),
+				UserUUID: userUUID,
 			}
 
 			c.Set("userDataJWT", userDataJWT)
